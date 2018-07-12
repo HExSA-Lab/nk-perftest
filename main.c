@@ -6,6 +6,10 @@
 	#include <stdlib.h>
 #endif
 
+size_t param;
+
+#include "test.c"
+
 #define rdtscll(val)                                    \
     do {                                                \
         uint32_t hi, lo;                                \
@@ -13,28 +17,20 @@
         val = ((uint64_t)hi << 32) | lo;                \
     } while (0)
 
-#define SIZE 10*1000*1000
 #define REPS 10
-
-typedef uint64_t val_t;
-
 void app_main() {
+	volatile uint64_t start, stop;
+	printf(TEST_NAME "\n");
+	printf(PARAM_DESCR ",time (cycles)\n");
 	for(size_t i = 0; i < REPS; ++i) {
-		val_t* array = malloc(SIZE * sizeof(val_t));
-		val_t tmp;
-		volatile uint64_t start, stop;
-
-		rdtscll(start);
-		for(size_t i = 0, j = SIZE - 1; i < SIZE; ++i, --j) {
-			tmp      = array[i];
-			array[i] = array[j];
-			array[j] = tmp;
+		for(param = PARAM_MIN; param < PARAM_MAX; ++param) {
+			test_setup();
+			rdtscll(start);
+			test_run();
+			rdtscll(stop);
+			printf("%lu,%lu\n", param, stop - start);
+			test_teardown();
 		}
-		rdtscll(stop);
-
-		printf("time: exp, %lu\n", stop - start);
-
-		free(array);
 	}
 }
 

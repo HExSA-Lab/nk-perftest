@@ -1,10 +1,10 @@
 #!/usr/bin/env sh
-set -e
+set -e -x
 
 build_host=qemu
 build_path=memtest2
 run_host=tinker-1
-data_out=~/data/data/linux_run_r4.out
+data_out=~/data/memtest2/data/linux_reverse.csv
 
 make clean
 rsync ./ "${build_host}:${build_path}/" \
@@ -14,12 +14,11 @@ rsync ./ "${build_host}:${build_path}/" \
       --delete      \
       --exclude=".git/*"
 
-OPT_FLAGS="-O2 -fno-omit-frame-pointer -fno-stack-protector -fno-strict-aliasing -fno-strict-overflow -fno-delete-null-pointer-checks -fno-common -fgnu89-inline -mno-red-zone -mno-sse2 -mcmodel=large -m64"
-
-ssh "${build_host}" -- env CC=gcc OPT_FLAGS="\"${OPT_FLAGS}\"" make -C "${build_path}" main
+ssh "${build_host}" -- make -C "${build_path}" main
 
 remote_tmp_path=/tmp/main
 local_tmp_path=/tmp/main
+ssh "${run_host}" -- rm "${remote_tmp_path}"
 if [ "${build_host}" = "${run_host}" ]
 then
 	ssh "${build_host}" -- mv "${build_path}/main" "${remote_tmp_path}"
@@ -29,4 +28,4 @@ else
 fi
 
 ssh "${run_host}" -- "${remote_tmp_path}" | tee "${data_out}"
-ln -sf $(realpath "${data_out}") ~/data/data/linux_run.out
+#ln -sf $(realpath "${data_out}") ~/data/data/linux_run.out
