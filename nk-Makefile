@@ -1,1 +1,1 @@
-obj-y += main.o
+obj-y += main.o test_create_free.o test_malloc_free.o

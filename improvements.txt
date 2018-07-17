@@ -1,0 +1,7 @@
+Printfs are not timed
+Timing code is not timed
+No nestedness
+timing is the responsibility of the caller
+timing is more runtime-optional
+Tests on different sizes
+Easy to add more tests

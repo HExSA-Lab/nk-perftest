@@ -1,37 +1,19 @@
 #!/usr/bin/env bash
 set -e
 
-out_file="${HOME}/data/data/nautk_r4.out"
+out_file="${HOME}/perftest/data/nautk4.csv"
 nautilus="${HOME}/nk"
-src_dest="${nautilus}/src/app"
-hdr_dest="${nautilus}/include/app"
 
-rm -rf "${src_dest}"
-rm -rf "${hdr_dest}"
+rm -rf "${nautilus}/src/app"     "${nautilus}/src/database"
+rm -rf "${nautilus}/include/app" "${nautilus}/include/database"
 
-srcs=($(find . -name '*.c' -printf '%p\n'))
-hdrs=($(find . -name '*.h' -printf '%p\n'))
+ln -s "$(realpath ./src/app)"     "${nautilus}/src/app"
+ln -s "$(realpath ./include/app)" "${nautilus}/include/app"
 
-mkdir "${src_dest}"
-mkdir "${hdr_dest}"
-
-for file in "${srcs[@]}"
-do
-    name="$(basename ${file})"
-	ln -s "$(realpath "${file}")" "${src_dest}/${name}"
-done
-
-for file in "${hdrs[@]}"
-do
-    name="$(basename ${file})"
-	ln -s "$(realpath "${file}")" "${hdr_dest}/${name}"
-done
-
-ln -s "$(realpath nk-Makefile)" "${src_dest}/Makefile"
+ln -s "$(realpath ./src/database)"     "${nautilus}/src/database"
+ln -s "$(realpath ./include/database)" "${nautilus}/include/database"
 
 cd "${nautilus}"
 #"${nautilus}/run_remote_qemu.sh"
 "${nautilus}/run_remote.py"
-strings "${nautilus}/output.txt" > "${out_file}"
-
-ln -sf "$(realpath ${out_file})" ~/data/data/nautk_run.out
+strings "${nautilus}/output.txt" | tr '\n' '\0' | grep -o -a -P '(?<=begin_data\0).*(?=\0end_data)' | tr '\0' '\n' > "${out_file}"

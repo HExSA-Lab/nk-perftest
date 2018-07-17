@@ -1,0 +1,81 @@
+# When Nautilus is fast
+
+## Motivation
+Instead of testing the wholesale database application, I am running small, simple, self-contained tests.
+
+## Array reverse
+
+### C source
+
+TODO: include source
+
+### Assembler
+
+(form `objdump -S build/app/test_malloc_free.o`)
+
+```
+                        rdtscll(start);
+ 11e:   0f 31                   rdtsc
+ 120:   89 c0                   mov    %eax,%eax
+ 122:   48 c1 e2 20             shl    $0x20,%rdx
+ 126:   48 09 c2                or     %rax,%rdx
+ 129:   48 8b 45 a8             mov    -0x58(%rbp),%rax
+ 12d:   48 89 55 c0             mov    %rdx,-0x40(%rbp)
+ 131:   48 8d 14 07             lea    (%rdi,%rax,1),%rdx
+                        for(size_t i = 0, j = size - 1; i < size; ++i, --j) {
+ 135:   31 c0                   xor    %eax,%eax
+ 137:   66 0f 1f 84 00 00 00    nopw   0x0(%rax,%rax,1)
+ 13e:   00 00
+                                tmp      = array[i];
+                                array[i] = array[j];
+ 140:   0f b6 32                movzbl (%rdx),%esi
+                                tmp      = array[i];
+ 143:   0f b6 0c 07             movzbl (%rdi,%rax,1),%ecx
+ 147:   48 83 ea 01             sub    $0x1,%rdx
+                                array[i] = array[j];
+ 14b:   40 88 34 07             mov    %sil,(%rdi,%rax,1)
+                        for(size_t i = 0, j = size - 1; i < size; ++i, --j) {
+ 14f:   48 83 c0 01             add    $0x1,%rax
+                                array[j] = tmp;
+ 153:   88 4a 01                mov    %cl,0x1(%rdx)
+                        for(size_t i = 0, j = size - 1; i < size; ++i, --j) {
+ 156:   49 39 c6                cmp    %rax,%r14
+ 159:   77 e5                   ja     140 <test_malloc_free+0x140>
+                        }
+                        rdtscll(stop);
+ 15b:   0f 31                   rdtsc
+ 15d:   48 c1 e2 20             shl    $0x20,%rdx
+ 161:   89 c0                   mov    %eax,%eax
+ 163:   48 09 c2                or     %rax,%rdx
+ 166:   48 89 55 c8             mov    %rdx,-0x38(%rbp)
+                        reverse_time = stop - start;
+```
+
+rdtscll(var) generates instructions like this:
+rdtsc
+mov
+shl
+or
+mov
+
+But only `rdtsc` really matters. This is what actually takes the snapshot. The other mostly one-cycle instructions hardly impact the counter the code under test takes a sufficiently macroscopic amount of time.
+
+We can see that the `rdtsc` does sandwich the loop. The loop goes from the `ja` on 159 to its target on 140. Inside the loop, things are happening in a funky order, but that does not matter.
+
+### Results
+
+TODO: image
+
+Nautilus shows superiority over linux, however this diminishes as the array gets bigger. Note that the at the point where Linux has a speedup of '1.2x', the Nautilus and Linux are within margin of error (1 standard deviation).
+
+## malloc
+
+It appears that Linux's malloc works very well for specific sizes of requests, but Nautilus works better all-around, especially with large input.
+
+## memcpy
+
+Linux's memcpy is much faster for small input, and only a little faster for large inputs
+
+## free
+
+The nature of Nautilus's buddy system implies little work has to be done, so it is many times faster than Linux.
