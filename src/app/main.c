@@ -6,12 +6,14 @@
 	#include <stdlib.h>
 #endif
 
-#include "app/test_create_free.h"
-#include "app/test_malloc_free.h"
+#include "app/test_array.h"
+#include "app/test_deep_array.h"
+#include "app/test_db.h"
 
 void test() {
-	test_malloc_free();
-	test_create_free();
+	/* test_array(); */
+	test_deep_array();
+	test_db();
 }
 
 #ifdef __NAUTILUS__

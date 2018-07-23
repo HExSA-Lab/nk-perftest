@@ -1,10 +1,10 @@
 #!/usr/bin/env sh
 set -e
 
-build_host=qemu
+build_host=tinker-1
 build_path=memtest2
 run_host=tinker-1
-data_out=~/perftest/data/linux4.csv
+data_out=~/perftest/data/linux6.csv
 
 make clean
 rsync ./ "${build_host}:${build_path}/" \
@@ -29,7 +29,6 @@ fi
 
 echo running
 tmp_path=/tmp/my_log
-ssh "${run_host}" "touch \"${tmp_path}\""
 ssh "${run_host}" "\"${remote_tmp_path}\" | tee \"${tmp_path}\""
 scp "${run_host}:${tmp_path}" "${data_out}"
 

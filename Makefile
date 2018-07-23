@@ -1,7 +1,8 @@
 CC:=gcc
 WFLAGS:= -Wall -Wextra -Wno-unused-function
 IFLAGS:=-I./include/
-CFLAGS_COMMON:=-std=gnu99
+CVERSION := -std=gnu99
+include src/app/macros.mk
 # from nautilus/Makefile
 CFLAGS_NAUT := -O2 \
                -fno-omit-frame-pointer \
@@ -16,9 +17,14 @@ CFLAGS_NAUT := -O2 \
                -Wstrict-overflow=5 \
                -fgnu89-inline \
                -g \
-               -m64
-CFLAGS_OPT  :=$(IFLAGS) $(WFLAGS) $(CFLAGS_COMMON) $(CFLAGS_NAUT) -DNDEBUG
-CFLAGS_DEBUG:=$(IFLAGS) $(WFLAGS) $(CFLAGS_COMMON) -Og -g -DVERBOSE -DSMALL
+               -m64 \
+                $(MACROS)
+CFLAGS_OPT  := $(CVERSION) $(IFLAGS) $(WFLAGS) $(CFLAGS_NAUT)
+# that line ^ should have no extra flags.
+# -std=* -I* and -W* won't affect the outputed code, so they are fine.
+# All flags which do (eg. -f* -O* -m*) should be a part of CFLAGS_NAUT
+CFLAGS_DEBUG:= $(CVERSION) $(IFLAGS) $(WFLAGS) -fno-inline -static -Og -g -DVERBOSE -DSMALL
+# -DREPLACE_MALLOC
 
 SOURCES:=$(shell find -L src/ -name '*.c' -printf '%P\n')
 OBJECTS:=$(addprefix build/,$(SOURCES:.c=.o))
@@ -31,7 +37,7 @@ build/%.o_debug: src/%.c
 	$(CC) $(CFLAGS_DEBUG) -c -o $@ $<
 
 main: $(OBJECTS)
-	$(CC) $(LDFLAGS) -o $@ $^
+	$(CC) $(CFLAGS_OPT) $(LDFLAGS) -o $@ $^
 
 main_debug: $(OBJECTS_DEBUG)
 	$(CC) $(LDFLAGS) -o $@ $^
@@ -44,6 +50,7 @@ run_small: main_debug
 
 memcheck: main_debug
 	valgrind -q ./main_debug
+#  --track-origins=yes --leak-check=full
 
 debug: main_debug
 	gdb -q main_debug -ex r ./main_debug

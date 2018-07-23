@@ -6,7 +6,7 @@ import numpy as np
 import re
 import os
 
-version = os.getenv('version', 4)
+version = os.getenv('version', 5)
 
 only_plots = [tuple(map(int, pair.split(',')))
               for pair in os.getenv('only_plots', '').split(':')
@@ -46,6 +46,9 @@ for this_os, data_file_name in data_file_names.items():
                         print(header_row)
                         print(row)
                         raise e
+                    if col_no >= len(plots[title][this_os]):
+                        print(f'{col_no} for {title} ({this_os}) not defined')
+                        print(list(enumerate(header_row)))
                     plots[title][this_os][col_no].append(data)
 
 for title in plots.keys():
@@ -95,6 +98,7 @@ for plot_no, plot_title in enumerate(sorted(plots.keys())):
                 factors = means / base_means
                 for x, factor, mean in list(zip(xs, factors, means))[::2]:
                     plt.text(x, mean, s=f'{factor:.1f}x')
+                print(f'{version}:{plot_no}:{col_no} {this_os} {x} {mean:.0f} ({factor:.1f}x)')
 
             plt.plot(xs, means, color=colors[this_os])
             plt.fill_between(xs,
@@ -105,4 +109,3 @@ for plot_no, plot_title in enumerate(sorted(plots.keys())):
         plt.legend(loc='upper left')
         plt.ylabel('time (cycles)')
         plt.show()
-        #plt.savefig(f'/home/sam/reu/pres4/reveal.js/img/{plot_title}_{col_title}.png', dpi=150, bbox_inches='tight')

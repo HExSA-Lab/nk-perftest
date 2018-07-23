@@ -1,1 +1,3 @@
-obj-y += main.o test_create_free.o test_malloc_free.o
+include src/app/macros.mk
+CFLAGS += $(MACROS)
+obj-y += main.o test_db.o test_array.o test_deep_array.o
