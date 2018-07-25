@@ -1,16 +1,18 @@
 #ifdef __NAUTILUS__
 	#include <nautilus/libccompat.h>
+	FILE* stdout = NULL;
 #else
 	#include <assert.h>
 	#include <stdbool.h>
 #endif
 #include "app/timing.h"
+#include "perf/perf.h"
 #include "database/database.h"
 #include "database/operators.h"
 #include "database/my_malloc.h"
 
 #ifdef SMALL
-	#define LOG_CHUNKS 1
+	#define LOG_CHUNKS 9
 	#define PARAM_MIN  2
 	#define PARAM_MAX  3
 	#define REPS       1
@@ -41,32 +43,31 @@
 #define TOTAL_SIZE_EXTRA 0
 
 void test_db() {
-	volatile uint64_t start, stop;
-	uint64_t create_time = 0, copy_table_time = 0, copy_row_time = 0, iterate_time = 0, free_time = 0, sort_time = 0;
+	timer_data_t timer;
 	printf("total size (log2 bytes),create,copy table (memcpy),copy rows (individually),sort,iterate,free,manipulate a %lu-chunk %lu-col array,title row\n", CHUNKS, COLS);
 	for(size_t log_chunk_size = PARAM_MIN; log_chunk_size < PARAM_MAX; ++log_chunk_size) {
 		for(size_t reps = 0; reps < REPS; ++reps) {
 			size_t chunk_size = 1 << log_chunk_size;
+			printf("%lu,", log_chunk_size + LOG_TOTAL_SIZE);
 
 			assert(1 << LOG_SIZEOF_VAL_T == sizeof(val_t));
 
 			#ifdef REPLACE_MALLOC
+			{
 				my_malloc_init(TOTAL_SIZE * chunk_size * TOTAL_SIZE_EXTRA_FACTOR + TOTAL_SIZE_EXTRA);
+			}
 			#endif
 
-			rdtscll(start);
+			timer_start(&timer);
 			col_table_t* table = create_col_table(CHUNKS, chunk_size, COLS, DOMAIN_SIZE);
 			col_table_t* table_copy = create_col_table_like(table);
-			rdtscll(stop);
-			create_time = stop - start;
+			timer_stop(&timer); timer_print(&timer);
 
-			rdtscll(start);
+			timer_start(&timer);
 			copy_col_table_noalloc(table, table_copy);
-			rdtscll(stop);
-			copy_table_time = stop - start;
+			timer_stop(&timer); timer_print(&timer);
 
-			drand48();
-			rdtscll(start);
+			timer_start(&timer);
 			for(size_t chunk_no = 0; chunk_no < table->num_chunks; ++chunk_no) {
 				table_chunk_t *in_chunk  = table     ->chunks[chunk_no];
 				table_chunk_t *out_chunk = table_copy->chunks[chunk_no];
@@ -78,16 +79,14 @@ void test_db() {
 					}
 				}
 			}
-			rdtscll(stop);
-			copy_row_time = stop - start;
+			timer_stop(&timer); timer_print(&timer);
 
-			rdtscll(start);
+			timer_start(&timer);
 			// note that this also counts the time to alloc a new table
 			table = countingmergesort(table, SORT_COL, DOMAIN_SIZE);
-			rdtscll(stop);
-			sort_time = stop - start;
+			timer_stop(&timer); timer_print(&timer);
 
-			rdtscll(start);
+			timer_start(&timer);
 			#pragma GCC diagnostic push
 			#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 			volatile val_t val;
@@ -100,28 +99,30 @@ void test_db() {
 					}
 				}
 			}
-			rdtscll(stop);
-			iterate_time = stop - start;
+			timer_stop(&timer); timer_print(&timer);
 
 			bool sorted = check_sorted(table, SORT_COL, DOMAIN_SIZE, table_copy);
 			if(!sorted) {
 				printf("Not sorted!\n");
 			}
 
-			rdtscll(start);
+			timer_start(&timer);
 			free_col_table(table);
 			free_col_table(table_copy);
-			rdtscll(stop);
-			free_time = stop - start;
+			timer_stop(&timer); timer_print(&timer);
 
 			#ifdef REPLACE_MALLOC
+			{
 				#ifdef VERBOSE
+				{
 					my_malloc_print();
+				}
 				#endif
 				my_malloc_deinit();
+			}
 			#endif
 
-				printf("%lu,%lu,%lu,%lu,%lu,%lu,%lu\n", log_chunk_size + LOG_TOTAL_SIZE, create_time, copy_table_time, copy_row_time, sort_time, iterate_time, free_time);
+			printf("\n");
 		}
 	}
 }
