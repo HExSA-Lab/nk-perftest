@@ -56,7 +56,7 @@ debug: main_debug
 	gdb -q main_debug -ex r ./main_debug
 
 clean:
-	@rm -rf main build src/app/*.o src/db/*.o src/app/.*.cmd src/db/.*.cmd
-	mkdir -p build/database build/app
+	@rm -rf main main_debug build src/app/*.o src/db/*.o src/app/.*.cmd src/db/.*.cmd
+	mkdir -p build/database build/app build/perf
 
 .PHONY: clean

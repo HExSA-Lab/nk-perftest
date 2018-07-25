@@ -12,7 +12,7 @@
 
 void test() {
 	/* test_array(); */
-	test_deep_array();
+	/* test_deep_array(); */
 	test_db();
 }
 

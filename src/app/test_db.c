@@ -10,9 +10,9 @@
 #include "database/my_malloc.h"
 
 #ifdef SMALL
-	#define LOG_CHUNKS 6
-	#define PARAM_MIN  16
-	#define PARAM_MAX  18
+	#define LOG_CHUNKS 1
+	#define PARAM_MIN  2
+	#define PARAM_MAX  3
 	#define REPS       1
 #else
 	#define LOG_CHUNKS 12
@@ -65,6 +65,7 @@ void test_db() {
 			rdtscll(stop);
 			copy_table_time = stop - start;
 
+			drand48();
 			rdtscll(start);
 			for(size_t chunk_no = 0; chunk_no < table->num_chunks; ++chunk_no) {
 				table_chunk_t *in_chunk  = table     ->chunks[chunk_no];
@@ -87,11 +88,13 @@ void test_db() {
 			sort_time = stop - start;
 
 			rdtscll(start);
+			#pragma GCC diagnostic push
+			#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 			volatile val_t val;
+			#pragma GCC diagnostic pop
 			for(size_t chunk_no = 0; chunk_no < table->num_chunks; ++chunk_no) {
 				table_chunk_t *chunk  = table->chunks[chunk_no];
-				for(size_t offset = 0; offset < in_chunk->columns[0]->chunk_size; ++offset) {
-					// copy_row(in_chunk, offset, out_chunk, offset, COLS);
+				for(size_t offset = 0; offset < chunk->columns[0]->chunk_size; ++offset) {
 					for(size_t column = 0; column < COLS; ++column) {
 						val = chunk->columns[column]->data[offset];
 					}

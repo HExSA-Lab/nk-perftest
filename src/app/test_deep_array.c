@@ -1,4 +1,5 @@
-#include "app/timing.h"
+#include "perf/perf.h"
+
 #ifdef __NAUTILUS__
 	#include <nautilus/libccompat.h>
 #else
@@ -10,22 +11,28 @@
 
 #ifdef SMALL
 	#define REPS 1
-	#define LOG_DIM1_MIN 20
-	#define LOG_DIM1_MAX 21
-	#define LOG_DIM2_MIN 10
-	#define LOG_DIM2_MAX 23
+	#define LOG_MEM_MIN 15
+	#define LOG_MEM_MAX 20
+	#define LOG_DIM1_MIN 5
+	#define LOG_DIM1_MAX 20
 #else
 	#define REPS 10
-	#define LOG_DIM1_MIN 12
-	#define LOG_DIM1_MAX 13
-	#define LOG_DIM2_MIN 10
-	#define LOG_DIM2_MAX 19
+	#define LOG_MEM_MIN 15
+	#define LOG_MEM_MAX 26
+	#define LOG_DIM1_MIN 5
+	#define LOG_DIM1_MAX 20
 #endif
+
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
 typedef uint8_t mval_t;
 
 static inline mval_t** deep_array_create(size_t dim1, size_t dim2) {
 	void* chunk = malloc(dim1 * sizeof(mval_t*) + dim1 * dim2 * sizeof(mval_t));
+	if(!chunk) {
+		printf("Failed to allocate %lu\n", dim1 * sizeof(mval_t*) + dim1 * dim2 * sizeof(mval_t));
+		exit(1);
+	}
 
 	mval_t** ret = chunk;
 	chunk += dim1 * sizeof(mval_t*);
@@ -95,55 +102,56 @@ static inline void deep_array_copy2(mval_t** arr1, mval_t** arr2, size_t dim1, s
 	}
 }
 */
+void test_deep_array_(size_t dim1, size_t dim2) {
+	timer_data_t timer;
+	timer_start(&timer);
+	timer_stop(&timer);
+	timer_print(&timer);
+
+	timer_start(&timer);
+	mval_t** arr1 = deep_array_create(dim1, dim2);
+	mval_t** arr2 = deep_array_create(dim1, dim2);
+	timer_stop(&timer);
+	timer_print(&timer);
+
+	timer_start(&timer);
+	deep_array_get1(arr1, dim1, dim2);
+	timer_stop(&timer);
+	timer_print(&timer);
+
+	timer_start(&timer);
+	deep_array_get2(arr1, dim1, dim2);
+	timer_stop(&timer);
+	timer_print(&timer);
+
+	timer_start(&timer);
+	deep_array_set1(arr1, dim1, dim2);
+	timer_stop(&timer);
+	timer_print(&timer);
+
+	timer_start(&timer);
+	deep_array_set2(arr1, dim1, dim2);
+	timer_stop(&timer);
+	timer_print(&timer);
+
+	timer_start(&timer);
+	deep_array_destroy(arr1, dim1);
+	deep_array_destroy(arr2, dim1);
+	timer_stop(&timer);
+	timer_print(&timer);
+}
+
 void test_deep_array() {
-	printf("array size (log2 bytes),noop,create,get1,get2,set1,set2,destroy,deep array,title row\n");
-	for(size_t log_dim1 = LOG_DIM1_MIN; log_dim1 < LOG_DIM1_MAX; ++log_dim1) {
-		size_t dim1 = 1 << log_dim1;
-
-		for(size_t log_dim2 = LOG_DIM2_MIN; log_dim2 < LOG_DIM2_MAX; ++log_dim2) {
+	printf("total size,dim1 size,noop,create,get1,get2,set1,set2,destroy,deep array,title row\n");
+	for(uint8_t log_mem = LOG_MEM_MIN; log_mem < LOG_MEM_MAX; ++log_mem) {
+		for(uint8_t log_dim1 = LOG_DIM1_MIN; log_dim1 < MIN(LOG_DIM1_MAX, log_mem - 1); ++log_dim1) {
+			uint8_t log_dim2 = log_mem - log_dim1;
+			size_t dim1 = 1 << log_dim1;
 			size_t dim2 = 1 << log_dim2;
-
-			for(size_t reps = 0; reps < REPS; ++reps) {
-				uint64_t null_time = 0, create_time = 0, destroy_time = 0, get1_time = 0, get2_time = 0, set1_time = 0, set2_time = 0;
-				volatile uint64_t start = 0, stop = 0;
-
-				rdtscll(start);
-				rdtscll(stop);
-				null_time = stop - start;
-
-				rdtscll(start);
-				mval_t** arr1 = deep_array_create(dim1, dim2);
-				mval_t** arr2 = deep_array_create(dim1, dim2);
-				rdtscll(stop);
-				create_time = stop - start;
-
-				rdtscll(start);
-				deep_array_get1(arr1, dim1, dim2);
-				rdtscll(stop);
-				get1_time = stop - start;
-
-				rdtscll(start);
-				deep_array_get2(arr1, dim1, dim2);
-				rdtscll(stop);
-				get2_time = stop - start;
-
-				rdtscll(start);
-				deep_array_set1(arr1, dim1, dim2);
-				rdtscll(stop);
-				set1_time = stop - start;
-
-				rdtscll(start);
-				deep_array_set2(arr1, dim1, dim2);
-				rdtscll(stop);
-				set2_time = stop - start;
-
-				rdtscll(start);
-				deep_array_destroy(arr1, dim1);
-				deep_array_destroy(arr2, dim1);
-				rdtscll(stop);
-				destroy_time = stop - start;
-
-				printf("%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu\n", log_dim1 + log_dim2, null_time, create_time, get1_time, get2_time, set1_time, set2_time, destroy_time);
+			for(uint8_t reps = 0; reps < REPS; ++reps) {
+				printf("%u,%u,", log_mem, log_dim1);
+				test_deep_array_(dim1, dim2);
+				printf("\n");
 			}
 		}
 	}

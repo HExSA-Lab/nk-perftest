@@ -4,7 +4,7 @@ set -e
 build_host=tinker-1
 build_path=memtest2
 run_host=tinker-1
-data_out=~/perftest/data/linux6.csv
+data_out=~/perftest/data/linux8.csv
 
 make clean
 rsync ./ "${build_host}:${build_path}/" \
