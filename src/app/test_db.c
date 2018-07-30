@@ -19,8 +19,8 @@
 #else
 	#define LOG_CHUNKS 12
 	#define PARAM_MIN  6
-	#define PARAM_MAX  12
-	#define REPS       10
+	#define PARAM_MAX  7
+	#define REPS       1
 #endif
 
 #define LOG_COLS       3
@@ -48,7 +48,8 @@ void test_db() {
 	for(size_t log_chunk_size = PARAM_MIN; log_chunk_size < PARAM_MAX; ++log_chunk_size) {
 		for(size_t reps = 0; reps < REPS; ++reps) {
 			size_t chunk_size = 1 << log_chunk_size;
-			printf("%lu,", log_chunk_size + LOG_TOTAL_SIZE);
+			printf("chunk size: %lu\n", chunk_size);
+			printf("total size: %lu,\n", chunk_size * TOTAL_SIZE);
 
 			assert(1 << LOG_SIZEOF_VAL_T == sizeof(val_t));
 
