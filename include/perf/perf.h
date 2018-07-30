@@ -3,7 +3,7 @@
 
 #ifdef __NAUTILUS__
 	#include <nautilus/libccompat.h>
-	#include <nautilus/pmc.h>
+//#include <nautilus/pmc.h>
 #else
 	#include <stdint.h>
 	#include <stdio.h>

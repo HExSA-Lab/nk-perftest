@@ -37,12 +37,16 @@
 #define COLS           (1L << LOG_COLS)
 #define TOTAL_SIZE     (1L << LOG_TOTAL_SIZE)
 
-// This is because I allocate (1) the test table, (2) a copy of it, and (3) an output table (inside of countingsort)
+// This is because I allocate
+//   - the test table,
+//   - a copy of it,
+//   - an output table (inside of countingsort),
+//   - a bit_vector whose size is the table
 // Therefore I need 3 times the size of one table.
 // Furthermore, sort and check_sorted both need to allocate arrays for other purposes.
 // The LOG_TOTAL_SIZE is approximate and less than the real table size,
 // because it only counts allocating the data-chunks, not pointers to those data-chunks.
-#define TOTAL_SIZE_EXTRA_FACTOR 4
+#define TOTAL_SIZE_EXTRA_FACTOR 5
 #define TOTAL_SIZE_EXTRA 0
 
 void test_db() {
@@ -53,10 +57,10 @@ void test_db() {
 	for(size_t log_chunk_size = PARAM_MIN; log_chunk_size < PARAM_MAX; ++log_chunk_size) {
 		for(size_t reps = 0; reps < REPS; ++reps) {
 			size_t chunk_size = 1 << log_chunk_size;
-			uint32_t rand_state_v = rand_state();
 			printf("%lu,", log_chunk_size + LOG_TOTAL_SIZE);
 			#ifdef VERBOSE
 			{
+
 				printf("rand state: %u\n", rand_state());
 				printf("chunk size: %lu\n", chunk_size);
 				printf("total size: %lu\n", chunk_size * TOTAL_SIZE);
@@ -95,11 +99,6 @@ void test_db() {
 			timer_stop(&timer); timer_print(&timer);
 
 			timer_start(&timer);
-			// note that this also counts the time to alloc a new table
-			table = countingmergesort(table, SORT_COL, DOMAIN_SIZE);
-			timer_stop(&timer); timer_print(&timer);
-
-			timer_start(&timer);
 			#pragma GCC diagnostic push
 			#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 			volatile val_t val;
@@ -115,9 +114,23 @@ void test_db() {
 			}
 			timer_stop(&timer); timer_print(&timer);
 
+			timer_start(&timer);
+			// note that this also counts the time to alloc a new table
+			table = countingmergesort(table, SORT_COL, DOMAIN_SIZE);
+			timer_stop(&timer); timer_print(&timer);
 			bool sorted = check_sorted(table, SORT_COL, DOMAIN_SIZE, table_copy);
 			if(!sorted) {
-				printf("Not sorted;\n");
+				printf("table not sorted;\n");
+				exit(1);
+			}
+
+			timer_start(&timer);
+			// note that this also counts the time to alloc a new table
+			table_copy = countingmergesort2(table_copy, SORT_COL, DOMAIN_SIZE);
+			timer_stop(&timer); timer_print(&timer);
+			bool sorted2 = check_sorted(table_copy, SORT_COL, DOMAIN_SIZE, table);
+			if(!sorted2) {
+				printf("table_copy not sorted;\n");
 				exit(1);
 			}
 
