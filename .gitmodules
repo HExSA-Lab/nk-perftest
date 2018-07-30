@@ -1,0 +1,3 @@
+[submodule "db-multiverse"]
+	path = db-multiverse
+	url = https://github.com/HExSA-Lab/db-multiverse.git

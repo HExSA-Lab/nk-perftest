@@ -55,7 +55,13 @@ void test_db() {
 			size_t chunk_size = 1 << log_chunk_size;
 			uint32_t rand_state_v = rand_state();
 			printf("%lu,", log_chunk_size + LOG_TOTAL_SIZE);
-			/* printf("%u,\n", rand_state()); */
+			#ifdef VERBOSE
+			{
+				printf("rand state: %u\n", rand_state());
+				printf("chunk size: %lu\n", chunk_size);
+				printf("total size: %lu\n", chunk_size * TOTAL_SIZE);
+			}
+			#endif
 
 			assert(1 << LOG_SIZEOF_VAL_T == sizeof(val_t));
 
@@ -111,7 +117,7 @@ void test_db() {
 
 			bool sorted = check_sorted(table, SORT_COL, DOMAIN_SIZE, table_copy);
 			if(!sorted) {
-				printf("Not sorted; rand_seed(%u);\n", rand_state_v);
+				printf("Not sorted;\n");
 				exit(1);
 			}
 
