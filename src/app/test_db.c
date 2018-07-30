@@ -19,10 +19,10 @@
 	#define REPS       1
 	#define RAND_SEED 0
 #else
-	#define LOG_CHUNKS 8
+	#define LOG_CHUNKS 12
 	#define PARAM_MIN  6
 	#define PARAM_MAX  12
-	#define REPS       10
+	#define REPS       15
 	#define RAND_SEED 0
 #endif
 
@@ -36,6 +36,11 @@
 #define CHUNKS         (1L << LOG_CHUNKS)
 #define COLS           (1L << LOG_COLS)
 #define TOTAL_SIZE     (1L << LOG_TOTAL_SIZE)
+
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
+
+#pragma message "CHUNKS = " STR(CHUNKS)
 
 // This is because I allocate
 //   - the test table,
@@ -53,7 +58,15 @@ void test_db() {
 	rand_seed(RAND_SEED);
 
 	timer_data_t timer;
-	printf("total size (log2 bytes),create,copy table (memcpy),copy rows (individually),sort,iterate,free,manipulate a %lu-chunk %lu-col array,title row\n", CHUNKS, COLS);
+	printf("total size,"
+		   "create,"
+		   "copy table (memcpy),"
+		   "copy rows (individually),"
+		   "iterate,"
+		   "sort (columnar),"
+		   "sort (copy_row),"
+		   "free,"
+		   "on a %lu-chunk %lu-col array,title row\n", CHUNKS, COLS);
 	for(size_t log_chunk_size = PARAM_MIN; log_chunk_size < PARAM_MAX; ++log_chunk_size) {
 		for(size_t reps = 0; reps < REPS; ++reps) {
 			size_t chunk_size = 1 << log_chunk_size;
