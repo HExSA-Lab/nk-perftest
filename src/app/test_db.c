@@ -1,26 +1,29 @@
 #ifdef __NAUTILUS__
 	#include <nautilus/libccompat.h>
-	FILE* stdout = NULL;
 #else
 	#include <assert.h>
 	#include <stdbool.h>
 #endif
 #include "app/timing.h"
 #include "perf/perf.h"
+#include "database/rand.h"
 #include "database/database.h"
 #include "database/operators.h"
 #include "database/my_malloc.h"
+#include "database/rand.h"
 
 #ifdef SMALL
 	#define LOG_CHUNKS 9
-	#define PARAM_MIN  2
-	#define PARAM_MAX  3
+	#define PARAM_MIN  12
+	#define PARAM_MAX  (PARAM_MIN + 1)
 	#define REPS       1
+	#define RAND_SEED 0
 #else
-	#define LOG_CHUNKS 12
+	#define LOG_CHUNKS 8
 	#define PARAM_MIN  6
 	#define PARAM_MAX  12
 	#define REPS       10
+	#define RAND_SEED 0
 #endif
 
 #define LOG_COLS       3
@@ -43,12 +46,16 @@
 #define TOTAL_SIZE_EXTRA 0
 
 void test_db() {
+	rand_seed(RAND_SEED);
+
 	timer_data_t timer;
 	printf("total size (log2 bytes),create,copy table (memcpy),copy rows (individually),sort,iterate,free,manipulate a %lu-chunk %lu-col array,title row\n", CHUNKS, COLS);
 	for(size_t log_chunk_size = PARAM_MIN; log_chunk_size < PARAM_MAX; ++log_chunk_size) {
 		for(size_t reps = 0; reps < REPS; ++reps) {
 			size_t chunk_size = 1 << log_chunk_size;
+			uint32_t rand_state_v = rand_state();
 			printf("%lu,", log_chunk_size + LOG_TOTAL_SIZE);
+			/* printf("%u,\n", rand_state()); */
 
 			assert(1 << LOG_SIZEOF_VAL_T == sizeof(val_t));
 
@@ -91,6 +98,7 @@ void test_db() {
 			#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 			volatile val_t val;
 			#pragma GCC diagnostic pop
+
 			for(size_t chunk_no = 0; chunk_no < table->num_chunks; ++chunk_no) {
 				table_chunk_t *chunk  = table->chunks[chunk_no];
 				for(size_t offset = 0; offset < chunk->columns[0]->chunk_size; ++offset) {
@@ -103,7 +111,8 @@ void test_db() {
 
 			bool sorted = check_sorted(table, SORT_COL, DOMAIN_SIZE, table_copy);
 			if(!sorted) {
-				printf("Not sorted!\n");
+				printf("Not sorted; rand_seed(%u);\n", rand_state_v);
+				exit(1);
 			}
 
 			timer_start(&timer);
