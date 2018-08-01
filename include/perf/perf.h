@@ -3,16 +3,14 @@
 
 #ifdef __NAUTILUS__
 	#include <nautilus/libccompat.h>
-//#include <nautilus/pmc.h>
+	#include <nautilus/pmc.h>
 #else
 	#include <stdint.h>
 	#include <stdio.h>
-//#include <libperf.h>
+	#include <assert.h>
 #endif
 
-#ifdef __PMC_H__
-	#define NK_PERF_EVENTS 3
-#endif
+#define PERF_EVENTS_SPECIFIC 3
 
 typedef struct {
 	volatile uint32_t start_lo;
@@ -20,15 +18,22 @@ typedef struct {
 	volatile uint32_t stop_lo;
 	volatile uint32_t stop_hi;
 
-	#ifdef __PMC_H__
-		perf_event_t* perf_event[NK_PERF_EVENTS];
-		uint64_t perf_event_ctr[NK_PERF_EVENTS];
+	uint64_t perf_event_start[PERF_EVENTS_SPECIFIC];
+	uint64_t perf_event_stop [PERF_EVENTS_SPECIFIC];
+
+	#ifdef __NAUTILUS__
+		perf_event_t* perf_event_nautk[PERF_EVENTS_SPECIFIC];
+	#else
+		int perf_event_fds_linux[PERF_EVENTS_SPECIFIC];
 	#endif
 
-	#ifdef __LIB_LIBPERF_H
-		struct libperf_data* pd;
-	#endif
 } timer_data_t;
+
+#ifdef __NAUTILUS__
+	#include <perf/perf_nautk.h>
+#else
+	#include <perf/perf_linux.h>
+#endif
 
 void timer_initialize(timer_data_t* obj);
 void timer_print(timer_data_t* obj);
@@ -36,29 +41,29 @@ void timer_print_header(char* name);
 void timer_finalize(timer_data_t* obj);
 
 static inline void timer_start(timer_data_t* obj) {
-	#ifdef __PMC_H__
-	for(unsigned short i = 0; i < NK_PERF_EVENTS; ++i) {
-		nk_pmc_start(obj->perf_event[i]);
+	for(unsigned int i = 0; i < PERF_EVENTS_SPECIFIC; ++i) {
+		obj->perf_event_start[i] = timer_read_specific(obj, i);
 	}
-	#endif
 	// do the bare minimum
 	// and be inlined,
 	// so this does not affect performance.
 	// For best results, timer_data_t should be stack-allocated.
 	__asm volatile ("rdtsc\n"
-					: "=a" (obj->start_lo), "=d" (obj->start_hi)
-					);
+	                : "=a" (obj->start_lo), "=d" (obj->start_hi)
+	                );
 }
 static inline void timer_stop(timer_data_t* obj) {
 	__asm volatile ("rdtsc"
-					: "=a" (obj->stop_lo), "=d" (obj->stop_hi)
-					);
-	#ifdef __PMC_H__
-	for(unsigned short i = 0; i < NK_PERF_EVENTS; ++i) {
-		obj->perf_event_ctr[i] = nk_pmc_read(obj->perf_event[i]);
-		nk_pmc_stop(obj->perf_event[i]);
+	                : "=a" (obj->stop_lo), "=d" (obj->stop_hi)
+	                );
+	for(unsigned int i = 0; i < PERF_EVENTS_SPECIFIC; ++i) {
+		obj->perf_event_stop[i] = timer_read_specific(obj, i);
 	}
-	#endif
+}
+
+static inline void timer_stop_print(timer_data_t* obj) {
+	timer_stop(obj);
+	timer_print(obj);
 }
 
 #endif
