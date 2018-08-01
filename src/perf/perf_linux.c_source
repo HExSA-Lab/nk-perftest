@@ -1,6 +1,7 @@
 #include <sys/types.h>
 #include <sys/syscall.h>
 #include <unistd.h>
+#include <sys/ioctl.h>
 
 static long
 sys_perf_event_open(struct perf_event_attr *hw_event,
@@ -54,17 +55,24 @@ void timer_initialize_specific(timer_data_t* obj) {
 		*/
 		obj->perf_event_fds_linux[i] =
 			sys_perf_event_open(&perf_event_idx[i], 0, -1, -1, 0);
-
-		if(obj->perf_event_fds_linux[i] < 0) {
-			perror("sys_perf_event_open");
-			exit(EXIT_FAILURE);
-		}
-
 		/*
 		if(i == 0) {
 			leader_fd = obj->perf_event_fds_linux[i];
 		}
 		*/
+
+		if(obj->perf_event_fds_linux[i] < 0) {
+			printf("perf counter %u failed (fd = %d)\n", i, obj->perf_event_fds_linux[i]);
+			perror("sys_perf_event_open");
+			exit(EXIT_FAILURE);
+		}
+
+		int rc = ioctl(obj->perf_event_fds_linux[i], PERF_EVENT_IOC_RESET, 0);
+		if(rc != 0) {
+			printf("perf counter %u failed (fd = %d, rc = %d)\n", i, obj->perf_event_fds_linux[i], rc);
+			perror("ioctl(perf_event_fd, RESET)");
+			exit(EXIT_FAILURE);
+		}
 	}
 }
 

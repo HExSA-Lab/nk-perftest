@@ -4,9 +4,9 @@
 
 typedef struct {
 	uint64_t value; /* The value of the event */
-	uint64_t time_enabled; /* if PERF_FORMAT_TOTAL_TIME_ENABLED */
-	uint64_t time_running; /* if PERF_FORMAT_TOTAL_TIME_RUNNING */
-	uint64_t id; /* if PERF_FORMAT_ID */
+	//uint64_t time_enabled; /* if PERF_FORMAT_TOTAL_TIME_ENABLED */
+	//uint64_t time_running; /* if PERF_FORMAT_TOTAL_TIME_RUNNING */
+	//uint64_t id; /* if PERF_FORMAT_ID */
 } read_format_t;
 
 
@@ -16,9 +16,9 @@ static inline uint64_t timer_read_specific(timer_data_t* obj, unsigned int i) {
 	read_format_t counter_result;
 	int rc = read(obj->perf_event_fds_linux[i], &counter_result, sizeof(read_format_t));
 
-	#ifndef NDEBUG
+	#ifndef DNDEBUG
 		if(rc != sizeof(read_format_t)) {
-			printf("rc = %d\n", rc);
+			printf("perf counter %u failed (fd = %d, rc = %d)\n", i, obj->perf_event_fds_linux[i], rc);
 			perror("read(perf_counter_fd)");
 			exit(EXIT_FAILURE);
 		}
