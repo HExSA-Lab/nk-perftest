@@ -23,7 +23,7 @@ CFLAGS_OPT  := $(CVERSION) $(IFLAGS) $(WFLAGS) $(CFLAGS_NAUT)
 # that line ^ should have no extra flags.
 # -std=* -I* and -W* won't affect the outputed code, so they are fine.
 # All flags which do (eg. -f* -O* -m*) should be a part of CFLAGS_NAUT
-CFLAGS_DEBUG:= $(CVERSION) $(IFLAGS) $(WFLAGS) -fno-inline -static -Og -g -DVERBOSE -DSMALL
+CFLAGS_DEBUG:= $(CVERSION) $(IFLAGS) $(WFLAGS) -fno-inline -static -Og -g -DVERBOSE -DSMALL -DREPLACE_MALLOC
 # -DREPLACE_MALLOC
 
 SOURCES:=$(shell find -L src/ -name '*.c' -printf '%P\n')

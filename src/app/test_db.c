@@ -4,7 +4,7 @@
 	#include <assert.h>
 	#include <stdbool.h>
 #endif
-#include "app/timing.h"
+
 #include "perf/perf.h"
 #include "database/rand.h"
 #include "database/database.h"
@@ -12,35 +12,29 @@
 #include "database/my_malloc.h"
 #include "database/rand.h"
 
+typedef unsigned long ulong;
+
 #ifdef SMALL
-	#define LOG_CHUNKS 9
-	#define PARAM_MIN  12
-	#define PARAM_MAX  (PARAM_MIN + 1)
+	#define log_num_chunks 8
+	#define log_num_cols_min 6
+	#define log_num_cols_max (log_num_cols_min + 1)
+	#define log_chunk_size_min  8
+	#define log_chunk_size_max  (log_chunk_size_min + 1)
+	#define domain_size 100
 	#define REPS       1
 	#define RAND_SEED 0
 #else
-	#define LOG_CHUNKS 12
-	#define PARAM_MIN  6
-	#define PARAM_MAX  12
-	#define REPS       15
+	#define log_num_chunks 8
+	#define log_num_cols_min 0
+	#define log_num_cols_max 7
+	#define log_chunk_size_min  8
+	#define log_chunk_size_max  14
+	#define domain_size 100
+	#define REPS       5
 	#define RAND_SEED 0
 #endif
 
-#define LOG_COLS       3
 #define LOG_SIZEOF_VAL_T 2
-#define LOG_TOTAL_SIZE (LOG_CHUNKS + LOG_COLS + LOG_SIZEOF_VAL_T)
-
-#define DOMAIN_SIZE 100
-#define SORT_COL 3
-
-#define CHUNKS         (1L << LOG_CHUNKS)
-#define COLS           (1L << LOG_COLS)
-#define TOTAL_SIZE     (1L << LOG_TOTAL_SIZE)
-
-#define STR_HELPER(x) #x
-#define STR(x) STR_HELPER(x)
-
-#pragma message "CHUNKS = " STR(CHUNKS)
 
 // This is because I allocate
 //   - the test table,
@@ -51,119 +45,124 @@
 // Furthermore, sort and check_sorted both need to allocate arrays for other purposes.
 // The LOG_TOTAL_SIZE is approximate and less than the real table size,
 // because it only counts allocating the data-chunks, not pointers to those data-chunks.
-#define TOTAL_SIZE_EXTRA_FACTOR 5
-#define TOTAL_SIZE_EXTRA 0
+#define TOTAL_SIZE_EXTRA_FACTOR 5.5
+#define TOTAL_SIZE_EXTRA 1000000
 
 void test_db() {
+	assert(1 << LOG_SIZEOF_VAL_T == sizeof(val_t));
+
+	ulong num_chunks = 1 << log_num_chunks;
 	rand_seed(RAND_SEED);
 
 	timer_data_t timer;
-	printf("total size,"
-		   "create,"
-		   "copy table (memcpy),"
-		   "copy rows (individually),"
-		   "iterate,"
-		   "sort (columnar),"
-		   "sort (copy_row),"
-		   "free,"
-		   "on a %lu-chunk %lu-col array,title row\n", CHUNKS, COLS);
-	for(size_t log_chunk_size = PARAM_MIN; log_chunk_size < PARAM_MAX; ++log_chunk_size) {
-		for(size_t reps = 0; reps < REPS; ++reps) {
-			size_t chunk_size = 1 << log_chunk_size;
-			printf("%lu,", log_chunk_size + LOG_TOTAL_SIZE);
-			#ifdef VERBOSE
-			{
+	timer_initialize(&timer);
 
-				printf("rand state: %u\n", rand_state());
-				printf("chunk size: %lu\n", chunk_size);
-				printf("total size: %lu\n", chunk_size * TOTAL_SIZE);
-			}
-			#endif
+	printf("chunk size,cols,");
+	timer_print_header("copy table (memcpy)");
+	timer_print_header("copy table (individually)");
+	timer_print_header("iterate");
+	timer_print_header("sort (column-oriented)");
+	timer_print_header("sort (row-oriented)");
+	printf("on a %lu-chunk array,title row\n", num_chunks);
 
-			assert(1 << LOG_SIZEOF_VAL_T == sizeof(val_t));
+	for(ulong log_chunk_size = log_chunk_size_min; log_chunk_size < log_chunk_size_max; ++log_chunk_size) {
+		for(ulong log_num_cols = log_num_cols_min; log_num_cols < log_num_cols_max; ++log_num_cols) {
 
-			#ifdef REPLACE_MALLOC
-			{
-				my_malloc_init(TOTAL_SIZE * chunk_size * TOTAL_SIZE_EXTRA_FACTOR + TOTAL_SIZE_EXTRA);
-			}
-			#endif
+			for(ulong reps = 0; reps < REPS; ++reps) {
 
-			timer_start(&timer);
-			col_table_t* table = create_col_table(CHUNKS, chunk_size, COLS, DOMAIN_SIZE);
-			col_table_t* table_copy = create_col_table_like(table);
-			timer_stop(&timer); timer_print(&timer);
+				ulong chunk_size = 1 << log_chunk_size;
+				ulong log_total_size = log_num_chunks + log_chunk_size + log_num_cols + LOG_SIZEOF_VAL_T;
+				ulong total_size = 1 << log_total_size;
+				ulong num_cols = 1 << log_num_cols;
 
-			timer_start(&timer);
-			copy_col_table_noalloc(table, table_copy);
-			timer_stop(&timer); timer_print(&timer);
+				my_malloc_init(((ulong) (total_size * TOTAL_SIZE_EXTRA_FACTOR)) + TOTAL_SIZE_EXTRA);
 
-			timer_start(&timer);
-			for(size_t chunk_no = 0; chunk_no < table->num_chunks; ++chunk_no) {
-				table_chunk_t *in_chunk  = table     ->chunks[chunk_no];
-				table_chunk_t *out_chunk = table_copy->chunks[chunk_no];
-				for(size_t offset = 0; offset < in_chunk->columns[0]->chunk_size; ++offset) {
-					// copy_row(in_chunk, offset, out_chunk, offset, COLS);
-					for(size_t column = 0; column < COLS; ++column) {
-						in_chunk ->columns[column]->data[offset] =
-						 out_chunk->columns[column]->data[offset];
+				col_table_t* table = create_col_table(num_chunks, chunk_size, num_cols, domain_size);
+				col_table_t* table_copy = create_col_table_like(table);
+
+				printf("%lu,%lu,", log_chunk_size, log_num_cols);
+
+				// meaningless when we have -DREPLACE_MALLOC
+				//timer_start(&timer);
+				//col_table_t* table = create_col_table(num_chunks, chunk_size, num_cols, domain_size);
+				//col_table_t* table_copy = create_col_table_like(table);
+				//timer_stop_print(&timer);
+
+				timer_start(&timer);
+				copy_col_table_noalloc(table, table_copy);
+				timer_stop_print(&timer);
+
+				timer_start(&timer);
+				for(ulong chunk_no = 0; chunk_no < table->num_chunks; ++chunk_no) {
+					table_chunk_t *in_chunk  = table     ->chunks[chunk_no];
+					table_chunk_t *out_chunk = table_copy->chunks[chunk_no];
+					for(ulong offset = 0; offset < in_chunk->columns[0]->chunk_size; ++offset) {
+						// copy_row(in_chunk, offset, out_chunk, offset, COLS);
+						for(ulong column = 0; column < num_cols; ++column) {
+							in_chunk ->columns[column]->data[offset] =
+								out_chunk->columns[column]->data[offset];
+						}
 					}
 				}
-			}
-			timer_stop(&timer); timer_print(&timer);
+				timer_stop_print(&timer);
 
-			timer_start(&timer);
-			#pragma GCC diagnostic push
-			#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
-			volatile val_t val;
-			#pragma GCC diagnostic pop
+				timer_start(&timer);
+				#pragma GCC diagnostic push
+				#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+				volatile val_t val;
+				#pragma GCC diagnostic pop
 
-			for(size_t chunk_no = 0; chunk_no < table->num_chunks; ++chunk_no) {
-				table_chunk_t *chunk  = table->chunks[chunk_no];
-				for(size_t offset = 0; offset < chunk->columns[0]->chunk_size; ++offset) {
-					for(size_t column = 0; column < COLS; ++column) {
-						val = chunk->columns[column]->data[offset];
+				for(ulong chunk_no = 0; chunk_no < table->num_chunks; ++chunk_no) {
+					table_chunk_t *chunk  = table->chunks[chunk_no];
+					for(ulong offset = 0; offset < chunk->columns[0]->chunk_size; ++offset) {
+						for(ulong column = 0; column < num_cols; ++column) {
+							val = chunk->columns[column]->data[offset];
+						}
 					}
 				}
-			}
-			timer_stop(&timer); timer_print(&timer);
+				timer_stop_print(&timer);
 
-			timer_start(&timer);
-			// note that this also counts the time to alloc a new table
-			table = countingmergesort(table, SORT_COL, DOMAIN_SIZE);
-			timer_stop(&timer); timer_print(&timer);
-			bool sorted = check_sorted(table, SORT_COL, DOMAIN_SIZE, table_copy);
-			if(!sorted) {
-				printf("table not sorted;\n");
-				exit(1);
-			}
-
-			timer_start(&timer);
-			// note that this also counts the time to alloc a new table
-			table_copy = countingmergesort2(table_copy, SORT_COL, DOMAIN_SIZE);
-			timer_stop(&timer); timer_print(&timer);
-			bool sorted2 = check_sorted(table_copy, SORT_COL, DOMAIN_SIZE, table);
-			if(!sorted2) {
-				printf("table_copy not sorted;\n");
-				exit(1);
-			}
-
-			timer_start(&timer);
-			free_col_table(table);
-			free_col_table(table_copy);
-			timer_stop(&timer); timer_print(&timer);
-
-			#ifdef REPLACE_MALLOC
-			{
-				#ifdef VERBOSE
-				{
-					my_malloc_print();
+				timer_start(&timer);
+				// note that this also counts the time to alloc a new table
+				ulong SORT_COL = num_cols / 2;
+				table = countingmergesort(table, SORT_COL, domain_size);
+				timer_stop_print(&timer);
+				bool sorted = check_sorted(table, SORT_COL, domain_size, table_copy);
+				if(!sorted) {
+					printf("table not sorted;\n");
+					exit(1);
 				}
-				#endif
+
+				timer_start(&timer);
+				// note that this also counts the time to alloc a new table
+				table_copy = countingmergesort2(table_copy, SORT_COL, domain_size);
+				timer_stop_print(&timer);
+				bool sorted2 = check_sorted(table_copy, SORT_COL, domain_size, table);
+				if(!sorted2) {
+					printf("table_copy not sorted;\n");
+					exit(1);
+				}
+
+				//timer_start(&timer);
+				//free_col_table(table);
+				//free_col_table(table_copy);
+				//timer_stop_print(&timer);
+
+				printf("\n");
+
+				free_col_table(table);
+				free_col_table(table_copy);
+
+#ifdef VERBOSE
+#ifdef REPLACE_MALLOC
+				my_malloc_print();
+#endif
+#endif
+
+				// this is noop if REPLACE MALLOC is undefined
 				my_malloc_deinit();
-			}
-			#endif
 
-			printf("\n");
+			}
 		}
 	}
 }

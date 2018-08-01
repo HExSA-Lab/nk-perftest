@@ -14,7 +14,6 @@ void test() {
 	/* test_array(); */
 	/* test_deep_array(); */
 	test_db();
-	/* bv_test(); */
 }
 
 #ifdef __NAUTILUS__

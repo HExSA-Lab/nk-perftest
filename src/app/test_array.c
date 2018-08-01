@@ -8,52 +8,83 @@
 	#include <string.h>
 #endif
 
+#include "perf/perf.h"
+
 #ifdef SMALL
 	#define REPS 1
 	#define PARAM_MIN 20
 	#define PARAM_MAX 23
 #else
 	#define REPS 10
-	#define PARAM_MIN 8
+	#define PARAM_MIN 10
 	#define PARAM_MAX 31
 #endif
 
 typedef uint8_t mval_t;
 
 void test_array() {
-	printf("array size (log2 bytes),malloc,copy (memcpy),copy (individually),free,,title row\n");
+	timer_data_t timer;
+	printf("array size,"
+	       "malloc,"
+		   "copy (memcpy),"
+	       "copy (individually),"
+	       "set,"
+	       "get,"
+		   "reverse,"
+	       "free,"
+	       ",title row\n");
+
 	for(size_t param = PARAM_MIN; param < PARAM_MAX; ++param) {
 		for(size_t reps = 0; reps < REPS; ++reps) {
 			size_t size = 1 << param;
-			volatile uint64_t start, stop;
-			uint64_t malloc_time = 0, free_time = 0, memcpy_time = 0, reverse_time = 0;
+			printf("%ld,", param);
 
-			rdtscll(start);
+			timer_start(&timer);
 			mval_t* array = malloc(size * sizeof(mval_t));
 			mval_t* array_copy = malloc(size * sizeof(mval_t));
-			rdtscll(stop);
-			malloc_time = stop - start;
+			timer_stop_print(&timer);
 
-			rdtscll(start);
+			timer_start(&timer);
 			memcpy(array_copy, array, size * sizeof(mval_t));
-			rdtscll(stop);
-			memcpy_time = stop - start;
+			timer_stop_print(&timer);
 
-			rdtscll(start);
-			for(size_t i = 0; i < size; ++i) {
-				array_copy[i] = array[i];
+			timer_start(&timer);
+			for(mval_t *src = array, *dst = array_copy, *stop = array + size;
+				src < stop; src++, dst++) {
+				*dst = *src;
 			}
-			rdtscll(stop);
-			reverse_time = stop - start;
+			timer_stop_print(&timer);
 
-			rdtscll(start);
+			timer_start(&timer);
+			#pragma GCC diagnostic push
+			#pragma GCC diagnostic ignored "-Wunused-variable"
+			for(mval_t *src = array, *stop = array + size;
+				src < stop; src++) {
+				volatile mval_t dst = *src;
+			}
+			#pragma GCC diagnostic pop
+			timer_stop_print(&timer);
+
+			timer_start(&timer);
+			for(mval_t *dst = array, *stop = array + size;
+				dst < stop; dst++) {
+				*dst = 0;
+			}
+			timer_stop_print(&timer);
+
+			timer_start(&timer);
+			for(mval_t *src = array, *dst = array_copy + size - 1, *stop = array + size;
+				src < stop; src++, dst--) {
+				*dst = *src;
+			}
+			timer_stop_print(&timer);
+
+			timer_start(&timer);
 			free(array_copy);
 			free(array);
-			rdtscll(stop);
-			free_time = stop - start;
+			timer_stop_print(&timer);
 
-			printf("%lu,%lu,%lu,%lu,%lu\n", param, malloc_time, memcpy_time, reverse_time, free_time);
-
+			printf("\n");
 		}
 	}
 }

@@ -8,9 +8,11 @@ import os
 
 version = os.getenv('version', 5)
 
-only_plots = [tuple(map(int, pair.split(',')))
-              for pair in os.getenv('only_plots', '').split(':')
-              if pair]
+only_plots = [
+    tuple(map(int, pair.split(',')))
+    for pair in os.getenv('only_plots', '').split(':')
+    if pair
+]
 
 data_file_names = {'linux': f'data/linux{version}.csv', 'nautk': f'data/nautk{version}.csv'}
 
@@ -39,17 +41,18 @@ for this_os, data_file_name in data_file_names.items():
                 headers[title] = header_row
             else:
                 for col_no, data in enumerate(row):
-                    try:
-                        data = int(data)
-                    except ValueError as e:
-                        print(this_os)
-                        print(header_row)
-                        print(row)
-                        raise e
-                    if col_no >= len(plots[title][this_os]):
-                        print(f'{col_no} for {title} ({this_os}) not defined')
-                        print(list(enumerate(header_row)))
-                    plots[title][this_os][col_no].append(data)
+                    if data:
+                        try:
+                            data = int(data)
+                        except ValueError as e:
+                            print(this_os)
+                            print(header_row)
+                            print(row)
+                            raise e
+                        if col_no >= len(plots[title][this_os]):
+                            print(f'{col_no} for {title} ({this_os}) not defined')
+                            print(list(enumerate(header_row)))
+                        plots[title][this_os][col_no].append(data)
 
 for title in plots.keys():
     for this_os in plots[title].keys():
@@ -79,10 +82,12 @@ for plot_no, plot_title in enumerate(sorted(plots.keys())):
 
         plt.figure(figsize=(9, 6))
         col_title = header_row[col_no]
+        #title_addendum = f'({version}:{plot_no}:{col_no})'
+        title_addendum = ''
         if col_title:
-            plt.title(f'{plot_title} {col_title} ({version}:{plot_no}:{col_no})')
+            plt.title(f'{plot_title} {col_title} {title_addendum}')
         else:
-            plt.title(f'{plot_title} ({version}:{plot_no}:{col_no})')
+            plt.title(f'{plot_title} {title_addendum}')
 
         plt.xlabel(header_row[0])
 
@@ -96,7 +101,7 @@ for plot_no, plot_title in enumerate(sorted(plots.keys())):
                 base_means = means
             else:
                 factors = means / base_means
-                for x, factor, mean in list(zip(xs, factors, means))[::2]:
+                for x, factor, mean in list(zip(xs, factors, means))[1::2]:
                     plt.text(x, mean, s=f'{factor:.1f}x')
                 print(f'{version}:{plot_no}:{col_no} {this_os} {x} {mean:.0f} ({factor:.1f}x)')
 
@@ -108,4 +113,5 @@ for plot_no, plot_title in enumerate(sorted(plots.keys())):
 
         plt.legend(loc='upper left')
         plt.ylabel('time (cycles)')
-        plt.show()
+        plt.savefig(f'{plot_title}_{col_title}.png')
+        #plt.show()
