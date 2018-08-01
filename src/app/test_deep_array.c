@@ -11,16 +11,18 @@
 
 #ifdef SMALL
 	#define REPS 1
-	#define LOG_MEM_MIN 15
-	#define LOG_MEM_MAX 20
-	#define LOG_DIM1_MIN 5
+	#define LOG_MEM_MAX 25
+	#define LOG_DIM1_MIN 6
 	#define LOG_DIM1_MAX 20
+	#define LOG_DIM2_MIN 8
+	#define LOG_DIM2_MAX 20
 #else
 	#define REPS 10
-	#define LOG_MEM_MIN 19
-	#define LOG_MEM_MAX 20
-	#define LOG_DIM1_MIN 5
-	#define LOG_DIM1_MAX 25
+	#define LOG_MEM_MAX 25
+	#define LOG_DIM1_MIN 6
+	#define LOG_DIM1_MAX 20
+	#define LOG_DIM2_MIN 6
+	#define LOG_DIM2_MAX 20
 #endif
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
@@ -102,69 +104,73 @@ static inline void deep_array_copy2(mval_t** arr1, mval_t** arr2, size_t dim1, s
 	}
 }
 
-void test_deep_array_(size_t dim1, size_t dim2) {
-	timer_data_t timer;
-	/* timer_start(&timer); */
-	/* timer_stop(&timer); */
-	/* timer_print(&timer); */
-
-	timer_start(&timer);
+void test_deep_array_(size_t dim1, size_t dim2, timer_data_t* timer) {
+	timer_start(timer);
 	mval_t** arr1 = deep_array_create(dim1, dim2);
 	mval_t** arr2 = deep_array_create(dim1, dim2);
-	timer_stop_print(&timer);
+	timer_stop_print(timer);
 
-	timer_start(&timer);
+	timer_start(timer);
 	deep_array_get1(arr1, dim1, dim2);
-	timer_stop_print(&timer);
+	timer_stop_print(timer);
 
-	timer_start(&timer);
+	timer_start(timer);
 	deep_array_get2(arr1, dim1, dim2);
-	timer_stop_print(&timer);
+	timer_stop_print(timer);
 
-	timer_start(&timer);
+	timer_start(timer);
 	deep_array_set1(arr1, dim1, dim2);
-	timer_stop_print(&timer);
+	timer_stop_print(timer);
 
-	timer_start(&timer);
+	timer_start(timer);
 	deep_array_set2(arr1, dim1, dim2);
-	timer_stop_print(&timer);
+	timer_stop_print(timer);
 
-	timer_start(&timer);
+	timer_start(timer);
 	deep_array_copy1(arr1, arr2, dim1, dim2);
-	timer_stop_print(&timer);
+	timer_stop_print(timer);
 
-	timer_start(&timer);
+	timer_start(timer);
 	deep_array_copy2(arr1, arr2, dim1, dim2);
-	timer_stop_print(&timer);
+	timer_stop_print(timer);
 
-	timer_start(&timer);
+	timer_start(timer);
 	deep_array_destroy(arr1, dim1);
 	deep_array_destroy(arr2, dim1);
-	timer_stop_print(&timer);
+	timer_stop_print(timer);
 }
 
 void test_deep_array() {
-	printf("total size,"
-		   "dim1 size,"
-		   "create,"
-		   "get1,"
-		   "get2,"
-		   "set1,"
-		   /* "set2", */
-		   "copy1,"
-		   /* "copy2", */
-		   "destroy,"
-		   "deep array,title row\n");
-	for(uint8_t log_mem = LOG_MEM_MIN; log_mem < LOG_MEM_MAX; ++log_mem) {
-		for(uint8_t log_dim1 = LOG_DIM1_MIN; log_dim1 < MIN(LOG_DIM1_MAX, log_mem); ++log_dim1) {
-			uint8_t log_dim2 = log_mem - log_dim1;
+	timer_data_t timer;
+	timer_initialize(&timer);
+	printf("file: $parent_deep_array.csv {\n");
+
+	printf("x dim1,x dim2,");
+	timer_print_header("create");
+	timer_print_header("get1");
+	timer_print_header("get2");
+	timer_print_header("set1");
+	timer_print_header("set2");
+	timer_print_header("copy1");
+	timer_print_header("copy2");
+	timer_print_header("free");
+
+	for(uint8_t log_dim1 = LOG_DIM1_MIN; log_dim1 < LOG_DIM1_MAX; ++log_dim1) {
+		for(uint8_t log_dim2 = LOG_DIM2_MIN; log_dim2 < LOG_DIM2_MAX; ++log_dim2) {
+			uint8_t log_total_size = log_dim1 + log_dim2;
+			if(log_total_size > LOG_MEM_MAX) {
+				continue;
+			}
 			size_t dim1 = 1 << log_dim1;
 			size_t dim2 = 1 << log_dim2;
 			for(uint8_t reps = 0; reps < REPS; ++reps) {
-				printf("%u,%u,", log_mem, log_dim1);
-				test_deep_array_(dim1, dim2);
+				printf("%u,%u,", log_dim1, log_dim2);
+				test_deep_array_(dim1, dim2, &timer);
 				printf("\n");
 			}
 		}
 	}
+
+	printf("}\n");
+	timer_finalize(&timer);
 }

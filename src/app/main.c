@@ -11,13 +11,15 @@
 #include "app/test_db.h"
 
 void test() {
-	/* test_array(); */
-	/* test_deep_array(); */
+	test_array();
+	test_deep_array();
 	test_db();
+	/* test_just_sort(8, 8, 4, 400); */
 }
 
 #ifdef __NAUTILUS__
 void app_main() {
+	printf("version night_rider\n");
 	printf("begin_data\n");
 	test();
 	printf("end_data\n");

@@ -12,11 +12,11 @@
 
 #ifdef SMALL
 	#define REPS 1
-	#define PARAM_MIN 20
+	#define PARAM_MIN 6
 	#define PARAM_MAX 23
 #else
 	#define REPS 10
-	#define PARAM_MIN 10
+	#define PARAM_MIN 6
 	#define PARAM_MAX 31
 #endif
 
@@ -24,15 +24,17 @@ typedef uint8_t mval_t;
 
 void test_array() {
 	timer_data_t timer;
-	printf("array size,"
-	       "malloc,"
-		   "copy (memcpy),"
-	       "copy (individually),"
-	       "set,"
-	       "get,"
-		   "reverse,"
-	       "free,"
-	       ",title row\n");
+	timer_initialize(&timer);
+
+	printf("file: $parent_array.csv {\n");
+	printf("x array size,");
+	timer_print_header("malloc");
+	timer_print_header("copy (memcpy)");
+	timer_print_header("copy (individually)");
+	timer_print_header("set");
+	timer_print_header("get");
+	timer_print_header("reverse");
+	timer_print_header("free");
 
 	for(size_t param = PARAM_MIN; param < PARAM_MAX; ++param) {
 		for(size_t reps = 0; reps < REPS; ++reps) {
@@ -87,4 +89,5 @@ void test_array() {
 			printf("\n");
 		}
 	}
+	printf("}\n");
 }

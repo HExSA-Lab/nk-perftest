@@ -26,8 +26,8 @@ typedef unsigned long ulong;
 #else
 	#define log_num_chunks 8
 	#define log_num_cols_min 0
-	#define log_num_cols_max 7
-	#define log_chunk_size_min  8
+	#define log_num_cols_max 8
+	#define log_chunk_size_min  4
 	#define log_chunk_size_max  14
 	#define domain_size 100
 	#define REPS       5
@@ -57,13 +57,15 @@ void test_db() {
 	timer_data_t timer;
 	timer_initialize(&timer);
 
-	printf("chunk size,cols,");
-	timer_print_header("copy table (memcpy)");
-	timer_print_header("copy table (individually)");
+	printf("test: $parent_db_%lu_chunk.csv {\n", num_chunks);
+	printf("x chunk size,x cols,");
+	timer_print_header("create (memcpy)");
+	timer_print_header("copy (memcpy)");
+	timer_print_header("copy (row-by-row)");
 	timer_print_header("iterate");
 	timer_print_header("sort (column-oriented)");
 	timer_print_header("sort (row-oriented)");
-	printf("on a %lu-chunk array,title row\n", num_chunks);
+	printf("\n");
 
 	for(ulong log_chunk_size = log_chunk_size_min; log_chunk_size < log_chunk_size_max; ++log_chunk_size) {
 		for(ulong log_num_cols = log_num_cols_min; log_num_cols < log_num_cols_max; ++log_num_cols) {
@@ -77,16 +79,12 @@ void test_db() {
 
 				my_malloc_init(((ulong) (total_size * TOTAL_SIZE_EXTRA_FACTOR)) + TOTAL_SIZE_EXTRA);
 
-				col_table_t* table = create_col_table(num_chunks, chunk_size, num_cols, domain_size);
-				col_table_t* table_copy = create_col_table_like(table);
-
 				printf("%lu,%lu,", log_chunk_size, log_num_cols);
 
-				// meaningless when we have -DREPLACE_MALLOC
-				//timer_start(&timer);
-				//col_table_t* table = create_col_table(num_chunks, chunk_size, num_cols, domain_size);
-				//col_table_t* table_copy = create_col_table_like(table);
-				//timer_stop_print(&timer);
+				timer_start(&timer);
+				col_table_t* table = create_col_table(num_chunks, chunk_size, num_cols, domain_size);
+				col_table_t* table_copy = create_col_table_like(table);
+				timer_stop_print(&timer);
 
 				timer_start(&timer);
 				copy_col_table_noalloc(table, table_copy);
@@ -143,11 +141,6 @@ void test_db() {
 					exit(1);
 				}
 
-				//timer_start(&timer);
-				//free_col_table(table);
-				//free_col_table(table_copy);
-				//timer_stop_print(&timer);
-
 				printf("\n");
 
 				free_col_table(table);
@@ -165,4 +158,32 @@ void test_db() {
 			}
 		}
 	}
+	printf("}\n");
+}
+
+void test_just_sort(uint8_t log_num_chunks_, uint8_t log_chunk_size_, uint8_t log_num_cols_, size_t reps) {
+	uint8_t log_total_size = log_num_chunks_ + log_chunk_size_ + log_num_cols_ + LOG_SIZEOF_VAL_T;
+	size_t total_size = ((ulong) ((1 << log_total_size) * (1 + reps * 1.3))) + TOTAL_SIZE_EXTRA;
+	size_t num_chunks = 1 << log_num_chunks_;
+	size_t chunk_size = 1 << log_chunk_size_;
+	size_t num_cols = 1 << log_num_cols_;
+	ulong SORT_COL = num_cols / 2;
+	timer_data_t timer;
+
+	timer_print_header("sort");
+	printf("\n");
+
+	timer_initialize(&timer);
+	my_malloc_init(total_size);
+	col_table_t* table = create_col_table(num_chunks, chunk_size, num_cols, domain_size);
+
+	timer_start(&timer);
+	for(size_t rep = 0; rep < reps; ++rep) {
+		table = countingmergesort(table, SORT_COL, domain_size);
+	}
+	timer_stop_print(&timer);
+	printf("\n");
+
+	my_malloc_deinit(total_size);
+	timer_finalize(&timer);
 }
