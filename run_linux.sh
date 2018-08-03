@@ -1,11 +1,34 @@
-#!/usr/bin/env sh
-set -e
+#!/bin/bash
+set -o pipefail -o noclobber -o xtrace -e errexit -o nounset
 
-build_host=tinker-1
-build_path=memtest2
-run_host=tinker-1
-data_out=~/perftest/data/linux8.csv
+# pass arguments like
+# version=12 ./run_linux.sh
+build_host="${build_host:-tinker-2}"
+build_path="${build_path:-perftest}"
+run_host="${run_host:-tinker-2}"
+run_target="${run_target:-main}"
+delete=${delete:-}
+if [ -z "${version:-}" ]
+then
+	echo must pass a version, like
+	echo $ version=12 ./run_linux.sh
+	exit 1
+fi
 
+# clear out log
+log=data/linux_${version}.log
+if [ -n "${delete}" ]
+then
+	rm -f "${log}"
+fi
+echo > "${log}"
+
+# Add version information to log
+commit=$(git log -1 --pretty=format:"%h")
+echo Git commit ${commit} >> "${log}"
+git status >> "${log}"
+
+# sync with build_host
 make clean
 rsync ./ "${build_host}:${build_path}/" \
       --archive  \
@@ -14,24 +37,30 @@ rsync ./ "${build_host}:${build_path}/" \
       --delete      \
       --exclude=".git/*"
 
-ssh "${build_host}" -- make -C "${build_path}" main
+# build on build host
+ssh "${build_host}" make V=1 -C "${build_path}" "${run_target}" >> "${log}"
 
-remote_tmp_path=/tmp/main
-local_tmp_path=/tmp/main
-ssh "${run_host}" -- rm -f "${remote_tmp_path}"
+# move from build host to run host
+remote_tmp_path=/tmp
+local_tmp_path=/tmp
+ssh "${run_host}" rm -f "${remote_tmp_path}/${run_target}"
 if [ "${build_host}" = "${run_host}" ]
 then
-	ssh "${build_host}" -- mv "${build_path}/main" "${remote_tmp_path}"
+	ssh "${build_host}" mv "${build_path}/${run_target}" "${remote_tmp_path}/${run_target}"
 else
-	scp "${build_host}:${build_path}/main" "${local_tmp_path}"
-	scp "${local_tmp_path}" "${run_host}:${remote_tmp_path}"
+	# scp build_host -> local
+	scp "${build_host}:${build_path}/${run_target}" "${local_tmp_path}/${run_target}"
+	# scp local -> run_host
+	scp "${local_tmp_path}/${run_target}" "${run_host}:${remote_tmp_path}/${run_target}"
 fi
 
 echo running
-tmp_path=/tmp/my_log
-ssh "${run_host}" "\"${remote_tmp_path}\" | tee \"${tmp_path}\""
-scp "${run_host}:${tmp_path}" "${data_out}"
+unbuffer ssh "${run_host}" "unbuffer perf stat -e cycles -e L1-icache-load-misses -e dTLB-load-misses ${remote_tmp_path}/${run_target}" | unbuffer -p tee -a "${log}"
 
-#ln -sf $(realpath "${data_out}") ~/data/data/linux_run.out
+# send a notification
+if which ntfy
+then
+	ntfy send 'Linux done'
+fi
 
-ntfy send 'Linux done'
+

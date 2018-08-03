@@ -1,11 +1,31 @@
-#!/usr/bin/env bash
-set -e
+#!/bin/bash
+set -o pipefail -o noclobber -o xtrace -e errexit -o nounset
 
-out_file=~/perftest/data/nautk8.csv
+# pass arguments like
+# version=12 ./run_nautk.sh
 nautilus=~/nk
-run_host="${run_host-tinker-1}"
-run_host_dns="${run_host_dns-tinker-1.cs.iit.edu}"
-run_host_ipmi="${run_host_ipmi-10.47.152.28}"
+run_host="${run_host-tinker-2}"
+run_host_dns="${run_host_dns-tinker-2.cs.iit.edu}"
+run_host_ipmi="${run_host_ipmi-10.47.142.34}"
+delete=${delete:-}
+if [ -z "${version:-}" ]
+then
+	echo must pass a version, like
+	echo $ version=12 ./run_linux.sh
+	exit 1
+fi
+
+log=data/nautk_${version}.log
+if [ -n "${delete}" ]
+then
+	rm -f "${log}"
+fi
+echo > "${log}"
+
+# Add version information to log
+commit=$(git log -1 --pretty=format:"%h")
+echo Git commit ${commit} >> "${log}"
+git status >> "${log}"
 
 rm -rf "${nautilus}/src/app"      "${nautilus}/include/app"
 rm -rf "${nautilus}/src/database" "${nautilus}/include/database"
@@ -30,6 +50,11 @@ then
 fi
 
 cd "${nautilus}"
-#"${nautilus}/run_remote_qemu.sh"
-run_host="${run_host}" run_host_dns="${run_host_dns}" run_host_ipmi="${run_host_ipmi}" "${nautilus}/run_remote.py"
-strings "${nautilus}/output.txt" | tr '\n' '\0' | grep -o -a -P '(?<=begin_data\0).*(?=\0end_data)' | tr '\0' '\n' > "${out_file}"
+run_host="${run_host}" run_host_dns="${run_host_dns}" run_host_ipmi="${run_host_ipmi}" unbuffer "${nautilus}/run_remote.py" | unbuffer -p tee -a "${log}"
+
+ssh -t "${ipmi_host}" -- env ipmi_host='"'"${run_host_ipmi}"'"' ./ipmitool power cycle
+
+if [ -n "${run_host_dns}" ]
+then
+	run_host_dns="${run_host_dns}" ./wait_for.sh
+fi

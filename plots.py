@@ -6,15 +6,11 @@ import numpy as np
 import re
 import os
 
-version = os.getenv('version', 5)
+version = os.getenv('version', None)
+if not version:
+    raise RuntimeError('must pass a version=n ./plots.py')
 
-only_plots = [
-    tuple(map(int, pair.split(',')))
-    for pair in os.getenv('only_plots', '').split(':')
-    if pair
-]
-
-data_file_names = {'linux': f'data/linux{version}.csv', 'nautk': f'data/nautk{version}.csv'}
+data_file_names = {'linux': f'data/linux_{version}.csv', 'nautk': f'data/nautk_{version}.csv'}
 
 plots = {}
 headers = {}
@@ -114,4 +110,5 @@ for plot_no, plot_title in enumerate(sorted(plots.keys())):
         plt.legend(loc='upper left')
         plt.ylabel('time (cycles)')
         plt.savefig(f'{plot_title}_{col_title}.png')
-        #plt.show()
+        plt.show()
+        plt.close()
