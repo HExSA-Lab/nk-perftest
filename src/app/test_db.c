@@ -16,16 +16,16 @@ typedef unsigned long ulong;
 
 #ifdef SMALL
 	#define log_num_chunks 8
-	#define log_num_cols_min 6
-	#define log_num_cols_max (log_num_cols_min + 1)
-	#define log_chunk_size_min  8
-	#define log_chunk_size_max  (log_chunk_size_min + 1)
+	#define log_num_cols_min 1
+	#define log_num_cols_max 8
+	#define log_chunk_size_min  4
+	#define log_chunk_size_max  14
 	#define domain_size 100
 	#define REPS       1
-	#define RAND_SEED 0
+	#define RAND_SEED 30145440
 #else
 	#define log_num_chunks 8
-	#define log_num_cols_min 0
+	#define log_num_cols_min 1
 	#define log_num_cols_max 8
 	#define log_chunk_size_min  4
 	#define log_chunk_size_max  14
@@ -57,7 +57,7 @@ void test_db() {
 	timer_data_t timer;
 	timer_initialize(&timer);
 
-	printf("test: $parent_db_%lu_chunk.csv {\n", num_chunks);
+	printf("file: $parent_db_%lu_chunk.csv {\n", num_chunks);
 	printf("x chunk size,x cols,");
 	timer_print_header("create (memcpy)");
 	timer_print_header("copy (memcpy)");
@@ -76,10 +76,14 @@ void test_db() {
 				ulong log_total_size = log_num_chunks + log_chunk_size + log_num_cols + LOG_SIZEOF_VAL_T;
 				ulong total_size = 1 << log_total_size;
 				ulong num_cols = 1 << log_num_cols;
+				ulong sort_col = num_cols / 2;
 
 				my_malloc_init(((ulong) (total_size * TOTAL_SIZE_EXTRA_FACTOR)) + TOTAL_SIZE_EXTRA);
 
 				printf("%lu,%lu,", log_chunk_size, log_num_cols);
+				#ifdef VERBOSE
+				//printf("\nrand_seed(%u);\n", rand_state());
+				#endif
 
 				timer_start(&timer);
 				col_table_t* table = create_col_table(num_chunks, chunk_size, num_cols, domain_size);
@@ -120,22 +124,21 @@ void test_db() {
 				}
 				timer_stop_print(&timer);
 
-				timer_start(&timer);
-				// note that this also counts the time to alloc a new table
-				ulong SORT_COL = num_cols / 2;
-				table = countingmergesort(table, SORT_COL, domain_size);
-				timer_stop_print(&timer);
-				bool sorted = check_sorted(table, SORT_COL, domain_size, table_copy);
-				if(!sorted) {
-					printf("table not sorted;\n");
-					exit(1);
-				}
+				/* timer_start(&timer); */
+				/* // note that this also counts the time to alloc a new table */
+				/* table = countingmergesort(table, sort_col, domain_size); */
+				/* timer_stop_print(&timer); */
+				/* bool sorted = check_sorted(table, sort_col, domain_size, table_copy); */
+				/* if(!sorted) { */
+				/* 	printf("table not sorted;\n"); */
+				/* 	exit(1); */
+				/* } */
 
 				timer_start(&timer);
 				// note that this also counts the time to alloc a new table
-				table_copy = countingmergesort2(table_copy, SORT_COL, domain_size);
+				table_copy = countingmergesort2(table_copy, sort_col, domain_size);
 				timer_stop_print(&timer);
-				bool sorted2 = check_sorted(table_copy, SORT_COL, domain_size, table);
+				bool sorted2 = check_sorted(table_copy, sort_col, domain_size, table);
 				if(!sorted2) {
 					printf("table_copy not sorted;\n");
 					exit(1);
@@ -159,6 +162,7 @@ void test_db() {
 		}
 	}
 	printf("}\n");
+	timer_finalize(&timer);
 }
 
 void test_just_sort(uint8_t log_num_chunks_, uint8_t log_chunk_size_, uint8_t log_num_cols_, size_t reps) {
@@ -167,7 +171,7 @@ void test_just_sort(uint8_t log_num_chunks_, uint8_t log_chunk_size_, uint8_t lo
 	size_t num_chunks = 1 << log_num_chunks_;
 	size_t chunk_size = 1 << log_chunk_size_;
 	size_t num_cols = 1 << log_num_cols_;
-	ulong SORT_COL = num_cols / 2;
+	ulong sort_col = num_cols / 2;
 	timer_data_t timer;
 
 	timer_print_header("sort");
@@ -179,7 +183,7 @@ void test_just_sort(uint8_t log_num_chunks_, uint8_t log_chunk_size_, uint8_t lo
 
 	timer_start(&timer);
 	for(size_t rep = 0; rep < reps; ++rep) {
-		table = countingmergesort(table, SORT_COL, domain_size);
+		table = countingmergesort(table, sort_col, domain_size);
 	}
 	timer_stop_print(&timer);
 	printf("\n");

@@ -23,7 +23,7 @@ CFLAGS_OPT  := $(CVERSION) $(IFLAGS) $(WFLAGS) $(CFLAGS_NAUT)
 # that line ^ should have no extra flags.
 # -std=* -I* and -W* won't affect the outputed code, so they are fine.
 # All flags which do (eg. -f* -O* -m*) should be a part of CFLAGS_NAUT
-CFLAGS_DEBUG:= $(CVERSION) $(IFLAGS) $(WFLAGS) -fno-inline -static -Og -g -DVERBOSE -DSMALL -DREPLACE_MALLOC
+CFLAGS_DEBUG:= $(CVERSION) $(IFLAGS) $(WFLAGS) -fno-inline -static -Og -g -DVERBOSE -DSMALL
 # -DREPLACE_MALLOC
 
 SOURCES:=$(shell find -L src/ -name '*.c' -printf '%P\n')
@@ -49,14 +49,14 @@ run_small: main_debug
 	./main_debug
 
 memcheck: main_debug
-	valgrind -q ./main_debug
-#  --track-origins=yes --leak-check=full
+	valgrind --track-origins=yes --leak-check=full -q ./main_debug
+
 
 debug: main_debug
 	gdb -q main_debug -ex r ./main_debug
 
 clean:
-	@rm -rf main main_debug build src/app/*.o src/db/*.o src/app/.*.cmd src/db/.*.cmd
+	rm -rf main main_debug build src/app/*.o src/database/*.o src/app/.*.cmd src/database/.*.cmd
 	mkdir -p build/database build/app build/perf
 
 .PHONY: clean

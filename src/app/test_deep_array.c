@@ -18,7 +18,7 @@
 	#define LOG_DIM2_MAX 20
 #else
 	#define REPS 10
-	#define LOG_MEM_MAX 25
+	#define LOG_MEM_MAX 24
 	#define LOG_DIM1_MIN 6
 	#define LOG_DIM1_MAX 20
 	#define LOG_DIM2_MIN 6
@@ -154,6 +154,7 @@ void test_deep_array() {
 	timer_print_header("copy1");
 	timer_print_header("copy2");
 	timer_print_header("free");
+	printf("\n");
 
 	for(uint8_t log_dim1 = LOG_DIM1_MIN; log_dim1 < LOG_DIM1_MAX; ++log_dim1) {
 		for(uint8_t log_dim2 = LOG_DIM2_MIN; log_dim2 < LOG_DIM2_MAX; ++log_dim2) {

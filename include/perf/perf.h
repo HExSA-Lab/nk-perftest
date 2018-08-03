@@ -4,13 +4,13 @@
 #ifdef __NAUTILUS__
 	#include <nautilus/libccompat.h>
 	#include <nautilus/pmc.h>
+	#define PERF_EVENTS_SPECIFIC 4
 #else
 	#include <stdint.h>
 	#include <stdio.h>
 	#include <assert.h>
+	#define PERF_EVENTS_SPECIFIC 4
 #endif
-
-#define PERF_EVENTS_SPECIFIC 3
 
 typedef struct {
 	volatile uint32_t start_lo;

@@ -35,6 +35,7 @@ void test_array() {
 	timer_print_header("get");
 	timer_print_header("reverse");
 	timer_print_header("free");
+	printf("\n");
 
 	for(size_t param = PARAM_MIN; param < PARAM_MAX; ++param) {
 		for(size_t reps = 0; reps < REPS; ++reps) {
@@ -90,4 +91,5 @@ void test_array() {
 		}
 	}
 	printf("}\n");
+	timer_finalize(&timer);
 }

@@ -15,6 +15,7 @@ char* perf_event_hdr_specific[PERF_EVENTS_SPECIFIC] = {
 	"dcache miss",
 	"icache miss",
 	"tlb miss",
+	"branch miss"
 };
 
 /*
@@ -25,9 +26,10 @@ static struct perf_event_attr attr = {
 */
 
 static struct perf_event_attr perf_event_idx[PERF_EVENTS_SPECIFIC] = {
-	{.type = PERF_TYPE_RAW, .config = 0x000400041},
+	{.type = PERF_TYPE_RAW, .config = 0x000400143},
 	{.type = PERF_TYPE_RAW, .config = 0x000400081},
 	{.type = PERF_TYPE_RAW, .config = 0x000403346},
+	{.type = PERF_TYPE_RAW, .config = 0x0004000c3},
 };
 
 void timer_initialize_specific(timer_data_t* obj) {
